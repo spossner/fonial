@@ -30,16 +30,17 @@ class FonialDevice:
         return "{}: {}".format(self.id, self.mac_address)
 
 class FonialNumber:
-    def __init__(self, id, number, state, cancelled, assigned):
+    def __init__(self, id, number, type, state, cancelled, assigned):
         self.id = id
         self.number = str(number)
         self.extension = int(self.number[-3:])
+        self.type = type
         self.state = state
         self.cancelled = cancelled
         self.assigned = assigned
 
     def __str__(self):
-        return "{}: {} ({}) {}".format(self.id, self.number, "cancelled" if self.cancelled else self.state, "assigned" if self.assigned else "not assigned")
+        return "{}: {} {} ({}) {}".format(self.id, self.type, self.number, "cancelled" if self.cancelled else self.state, "assigned" if self.assigned else "not assigned")
 
 class Fonial(object):
     def __init__(self, args) -> None:
@@ -249,7 +250,7 @@ class Fonial(object):
         numbers = {}
         j = json.loads(response.content)
         for no in j["data"]:
-            n = FonialNumber(str(no["DT_RowId"]), str(no["number"][4:]), no["state"], bool(no["cancel_at"]), bool(len(no["targets"])))
+            n = FonialNumber(str(no["DT_RowId"]), str(no["number"][4:]), no["type"], no["state"], bool(no["cancel_at"]), bool(len(no["targets"])))
             numbers[n.number] = n
         logging.debug("found {} numbers: {}".format(len(numbers), numbers.keys()))
         return numbers
@@ -319,6 +320,7 @@ class Fonial(object):
         })
         logging.debug(response.text)
         n.state = False # store the new inactive state w/o reloading the truth from server -> a little risk!
+        n.cancelled = False # store the new cancelled state w/o reloading the truth from server -> a little risk!
 
     def set_phone_number(self, n, d):
         if not n.state:
@@ -391,7 +393,7 @@ class Fonial(object):
             for a, b in mapping.items():
                 csrf = self.switch_number(numbers[a], numbers[b], csrf)
 
-    def check_number_mapping(self):
+    def check_number_mapping(self, number, devices):
         wb = load_workbook(self.args.file, data_only=True)
         ws = wb.active
         # for i, row in enumerate(ws.values):
@@ -416,16 +418,17 @@ class Fonial(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fonial admin batch tool')
-    parser.add_argument('--account', required=True,
+    parser.add_argument('-a', '--account', required=True,
+
                         help='the fonial account id (usually 6 digit id)')
-    parser.add_argument('--user', required=True,
+    parser.add_argument('-u', '--user', required=True,
                         help='the fonial backend username (usually an email address)')
-    parser.add_argument('--password', required=False,
+    parser.add_argument('-p', '--password', required=False,
                         help='the fonial backend users password')
-    parser.add_argument('--debug', action="store_true", default=False,
+    parser.add_argument('-d', '--debug', action="store_true", default=False,
                         help='set debug mode')
-    parser.add_argument('--simulate', action="store_true", default=False,
-                        help='set simulation mode')
+    parser.add_argument('-n', '--dry-run', action="store_true", default=False,
+                        help='perform a trial run with no changes made')
     parser.add_argument('file',
                         help='list of account IDs (in first column)')
     args = parser.parse_args()
@@ -435,24 +438,24 @@ if __name__ == "__main__":
 
     f = Fonial(args)
     numbers = f.loadNumbers()
-    devices = f.loadDevices()
+    # devices = f.loadDevices()
 
-    wb = load_workbook(args.file, data_only=True)
-    ws = wb.active
-    for i, row in enumerate(ws.values):
-    # for i, row in zip(range(2), ws.values):
-        if i < 1:
-            continue  # skip header row
-        if row[13] == 'delete':
-            name = row[7]
-            number = str(row[8])
-            mac_address = row[10]
-            d = devices[mac_address] if mac_address is not None and mac_address in devices else None
-            n = numbers[number] if number in numbers else None
-            if d:
-                f.delete_device(d)
-            if n:
-                f.deactivateNumber(n)
+    # wb = load_workbook(args.file, data_only=True)
+    # ws = wb.active
+    # for i, row in enumerate(ws.values):
+    # # for i, row in zip(range(2), ws.values):
+    #     if i < 1:
+    #         continue  # skip header row
+    #     if row[13] == 'delete':
+    #         name = row[7]
+    #         number = str(row[8])
+    #         mac_address = row[10]
+    #         d = devices[mac_address] if mac_address is not None and mac_address in devices else None
+    #         n = numbers[number] if number in numbers else None
+    #         if d:
+    #             f.delete_device(d)
+    #         if n:
+    #             f.deactivateNumber(n)
 
-    # f.check_number_mapping()
+    # f.check_number_mapping(numbers, devices)
     # f.newDevices()
