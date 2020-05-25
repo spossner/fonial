@@ -45,9 +45,9 @@ class FonialNumber:
 class Fonial(object):
     def __init__(self, args) -> None:
         self.args = args
+        logging.basicConfig(level=logging.DEBUG if self.args.debug else logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.session = requests.session()
         self.login(self.args.user, self.args.password)
-        logging.basicConfig(level=logging.DEBUG if self.args.debug else logging.INFO)
 
 
     def login(self, username, password):
@@ -63,6 +63,7 @@ class Fonial(object):
         })
         soup = BeautifulSoup(response.content, 'html.parser')
         assert soup.title.string == "fonial Kundenkonto"
+        logging.debug("successfully logged in as #{username}")
 
     ## DEVICES
 
@@ -513,10 +514,10 @@ if __name__ == "__main__":
 
     f = Fonial(args)
 
-    if args.export:
-        f.export()
-    else:
-        f.sync()
+    # if args.export:
+    #     f.export()
+    # else:
+    #     f.sync()
 
     # numbers = f.loadNumbers()
     # devices = f.loadDevices()
