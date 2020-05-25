@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from getpass import getpass
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 import requests
 from bs4 import BeautifulSoup
@@ -486,6 +486,31 @@ class Fonial(object):
             if n.state and not n.assigned and not n.cancelled:
                 f.deactivateNumber(n)
 
+    def export(self):
+        wb = Workbook()
+        ws = wb.active
+        # append header
+        ws.append(["Firstname", "Lastname", "Name", "Number", "Extension", "Mac-Address", "Type", "Status", "Handed over to user", "When", "Returned to", "When", "Remarks"])
+        numbers = self.loadNumbers()
+        devices = self.loadDevices()
+        for n in numbers.values():
+            d = devices[n.mac_address]
+            ws.append([
+                "",
+                "",
+                d.mac_address,
+                n.number,
+                n.extension,
+                d.mac_address,
+                d.type,
+                "DEPLOYED",  # must be DEPLOYED, STORAGE or NO DEVICE - anything else than DEPLOYED?
+                "?",
+                "?",
+                "",
+                "",
+                ""
+            ])
+        wb.save(filename=self.args.file)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fonial admin batch tool')
@@ -495,7 +520,7 @@ if __name__ == "__main__":
                         help='the fonial backend username (usually an email address)')
     parser.add_argument('-p', '--password', required=False,
                         help='the fonial backend users password')
-    parser.add_argument('-e', '--export', required=False,
+    parser.add_argument('-e', '--export', action="store_true", default=False,
                         help='export the current data in fonial into the specified file')
     parser.add_argument('-c', '--clean', required=False,
                         help='deactivate unused numbers')
@@ -514,10 +539,10 @@ if __name__ == "__main__":
 
     f = Fonial(args)
 
-    # if args.export:
-    #     f.export()
-    # else:
-    #     f.sync()
+    if args.export:
+        f.export()
+    else:
+        f.sync()
 
     # numbers = f.loadNumbers()
     # devices = f.loadDevices()
